@@ -20,6 +20,22 @@ After restarting, open **Settings → Devices & services → Add integration**, 
 
 The integration checks the connection with a read-only register request before saving the device. The polling interval can be changed later from the integration's options.
 
+## Keep test data out of History
+
+Home Assistant's Recorder controls saved history. To keep the live entities available without saving their state changes, add these exclusions to `configuration.yaml` and restart Home Assistant:
+
+```yaml
+recorder:
+  exclude:
+    entity_globs:
+      - sensor.phnix_khx_*
+      - number.phnix_khx_*
+      - switch.phnix_khx_*
+      - select.phnix_khx_*
+```
+
+These patterns match the default device name, **Phnix KHX**. If you chose another name or renamed entities, check their actual entity IDs in **Settings → Devices & services → Entities** and adjust the patterns. If you already have a `recorder:` section, add the patterns to its existing `exclude.entity_globs` list rather than creating a second section. Recorder exclusions stop future history; previously saved history remains until it is purged. Remove the patterns and restart Home Assistant when you want to start recording.
+
 ## Manual install
 
 Copy `custom_components/phnix_khx` from this repository into the `custom_components` directory in your Home Assistant configuration, then restart Home Assistant.

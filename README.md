@@ -15,14 +15,14 @@ After restarting, open **Settings → Devices & services → Add integration**, 
 - A name for this heat pump
 - The IP address or hostname of its Modbus TCP gateway
 - Modbus TCP port (usually `502`)
-- Unit ID / slave address (usually `1`)
+- Numeric unit ID / slave address (`1`–`247`, usually `1`)
 - Polling interval in seconds (default `10`)
 
 The integration checks the connection with a read-only register request before saving the device. The polling interval can be changed later from the integration's options.
 
 ## Keep test data out of History
 
-Home Assistant's Recorder controls saved history. To keep the live entities available without saving their state changes, add these exclusions to `configuration.yaml` and restart Home Assistant:
+Home Assistant's Recorder controls saved history, so this setting is in Home Assistant's `recorder:` configuration rather than the heat pump setup form. To keep the live entities available without saving their state changes, add these exclusions to `configuration.yaml` and restart Home Assistant:
 
 ```yaml
 recorder:

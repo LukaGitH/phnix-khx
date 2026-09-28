@@ -9,13 +9,14 @@
           "name": "Name",
           "host": "Host or IP address",
           "port": "Port",
-          "slave": "Unit ID / slave",
+          "slave": "Slave address (1–247)",
           "scan_interval": "Polling interval (seconds)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the heat pump. Check the host, port, unit ID, and network connection."
+      "cannot_connect": "Could not connect to the heat pump. Check the host, port, unit ID, and network connection.",
+      "invalid_slave": "Enter a whole-number slave address."
     },
     "abort": {
       "already_configured": "This heat pump is already configured."

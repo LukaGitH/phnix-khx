@@ -8,6 +8,11 @@ from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from .const import (
     CONF_SCAN_INTERVAL,
@@ -32,7 +37,14 @@ def _schema(defaults: dict | None = None) -> vol.Schema:
             vol.Required(
                 CONF_SLAVE,
                 default=defaults.get(CONF_SLAVE, DEFAULT_SLAVE),
-            ): vol.All(cv.positive_int, vol.Range(min=1, max=247)),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=1,
+                    max=247,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(
                 CONF_SCAN_INTERVAL,
                 default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
@@ -61,7 +73,11 @@ class PhnixKHXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             user_input[CONF_HOST] = user_input[CONF_HOST].strip()
-            if await _test_connection(self.hass, user_input):
+            if not float(user_input[CONF_SLAVE]).is_integer():
+                errors[CONF_SLAVE] = "invalid_slave"
+            else:
+                user_input[CONF_SLAVE] = int(user_input[CONF_SLAVE])
+            if not errors and await _test_connection(self.hass, user_input):
                 unique_id = (
                     f"{user_input[CONF_HOST].lower()}:"
                     f"{user_input[CONF_PORT]}:{user_input[CONF_SLAVE]}"
@@ -72,7 +88,8 @@ class PhnixKHXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=user_input.pop(CONF_NAME),
                     data=user_input,
                 )
-            errors["base"] = "cannot_connect"
+            if not errors:
+                errors["base"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="user",

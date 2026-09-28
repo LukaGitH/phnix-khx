@@ -1,0 +1,26 @@
+{
+  "title": "Phnix KHX Heat Pump",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Phnix KHX",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave": "Modbus unit / slave ID",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the Modbus gateway"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "compressor_speed": { "name": "Compressor Speed" },
+      "fan_speed": { "name": "Fan Speed" },
+      "fan_2_speed": { "name": "Fan 2 Speed" }
+    }
+  }
+}

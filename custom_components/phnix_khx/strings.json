@@ -4,23 +4,44 @@
     "step": {
       "user": {
         "title": "Connect to Phnix KHX",
+        "description": "Enter the Modbus TCP gateway settings for your heat pump.",
         "data": {
-          "host": "Host",
+          "name": "Name",
+          "host": "Host or IP address",
           "port": "Port",
-          "slave": "Modbus unit / slave ID",
-          "scan_interval": "Scan interval (seconds)"
+          "slave": "Unit ID / slave",
+          "scan_interval": "Polling interval (seconds)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to the Modbus gateway"
+      "cannot_connect": "Could not connect to the heat pump. Check the host, port, unit ID, and network connection."
+    },
+    "abort": {
+      "already_configured": "This heat pump is already configured."
     }
   },
   "entity": {
     "sensor": {
-      "compressor_speed": { "name": "Compressor Speed" },
-      "fan_speed": { "name": "Fan Speed" },
-      "fan_2_speed": { "name": "Fan 2 Speed" }
+      "compressor_speed": {
+        "name": "Compressor Speed"
+      },
+      "fan_speed": {
+        "name": "Fan Speed"
+      },
+      "fan_2_speed": {
+        "name": "Fan 2 Speed"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling interval",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
     }
   }
 }

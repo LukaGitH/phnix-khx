@@ -4,9 +4,9 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.select import SelectEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import PhnixKHXDevice
@@ -16,15 +16,13 @@ from .modbus import ModbusError
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    if discovery_info is None:
-        return
-    device: PhnixKHXDevice = hass.data[DOMAIN][discovery_info["name"]]
+    """Set up entities for a configured heat pump."""
+    device: PhnixKHXDevice = entry.runtime_data
     async_add_entities([PhnixKHXSelect(device, spec) for spec in SELECTS])
 
 
@@ -51,7 +49,7 @@ class PhnixKHXSelect(CoordinatorEntity, SelectEntity):
         self._attr_options = self._options
         self._attr_icon = "mdi:form-list-box"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.host)},
+            "identifiers": {(DOMAIN, device.host, device.port, device.slave)},
             "name": device.name,
             "manufacturer": "Phnix",
             "model": "KHX R290 (WarmLink 644)",

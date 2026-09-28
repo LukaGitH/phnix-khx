@@ -1,6 +1,6 @@
 # Phnix KHX Heat Pump for Home Assistant
 
-A local Modbus TCP integration for Phnix KHX heat pumps. It provides sensor, number, switch, and select entities and can run alongside a Home Assistant `modbus:` configuration.
+A local Modbus TCP integration for Phnix KHX heat pumps. It provides sensor, number, switch, and select entities.
 
 ## Install with HACS
 
@@ -8,23 +8,18 @@ A local Modbus TCP integration for Phnix KHX heat pumps. It provides sensor, num
 2. Add `https://github.com/LukaGitH/phnix-khx` with category **Integration**.
 3. Install **Phnix KHX Heat Pump**, then restart Home Assistant.
 
+## Add the heat pump
+
+After restarting, open **Settings → Devices & services → Add integration**, search for **Phnix KHX Heat Pump**, and enter:
+
+- A name for this heat pump
+- The IP address or hostname of its Modbus TCP gateway
+- Modbus TCP port (usually `502`)
+- Unit ID / slave address (usually `1`)
+- Polling interval in seconds (default `10`)
+
+The integration checks the connection with a read-only register request before saving the device. The polling interval can be changed later from the integration's options.
+
 ## Manual install
 
 Copy `custom_components/phnix_khx` from this repository into the `custom_components` directory in your Home Assistant configuration, then restart Home Assistant.
-
-## Configure
-
-Add one or more devices to `configuration.yaml`:
-
-```yaml
-phnix_khx:
-  - name: Phnix KHX
-    host: 192.168.0.194
-    port: 502
-    slave: 1
-    scan_interval: 10
-```
-
-Set `host` to the IP address of the heat pump's Modbus TCP gateway. `port` defaults to `502`, `slave` defaults to `1`, and `scan_interval` is in seconds. After editing YAML, restart Home Assistant.
-
-The integration reads the configured registers and exposes supported writable settings as entities. Confirm your wiring, gateway settings, and unit ID before enabling control entities.

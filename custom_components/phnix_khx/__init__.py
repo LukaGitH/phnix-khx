@@ -1,33 +1,23 @@
-"""Phnix KHX heat pump - local Modbus integration.
-
-Configure in configuration.yaml:
-
-    phnix_khx:
-      - name: Phnix KHX
-        host: 192.168.0.194
-        port: 502
-        slave: 1
-        scan_interval: 10
-
-Reads and writes the KHX holding registers directly. Runs alongside (not instead
-of) an existing `modbus:` block - useful for comparing both, or for migrating off
-raw modbus entities onto a real device with number/switch/select platforms.
-"""
+"""Phnix KHX heat pump integration."""
 from __future__ import annotations
 
 import logging
 from datetime import timedelta
 
 import voluptuous as vol
-
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.discovery import async_load_platform
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_HOST,
+    CONF_NAME,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+    CONF_SLAVE,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
@@ -41,13 +31,9 @@ from .const import (
 from .modbus import ModbusClient, ModbusError
 
 _LOGGER = logging.getLogger(__name__)
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH, Platform.SELECT]
 
-CONF_SLAVE = "slave"
-CONF_SCAN_INTERVAL = "scan_interval"
-
-PLATFORMS = ["sensor", "number", "switch", "select"]
-
-DEVICE_SCHEMA = vol.Schema(
+_DEVICE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
@@ -56,19 +42,18 @@ DEVICE_SCHEMA = vol.Schema(
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): cv.positive_int,
     }
 )
-
 CONFIG_SCHEMA = vol.Schema(
-    {DOMAIN: vol.All(cv.ensure_list, [DEVICE_SCHEMA])},
+    {DOMAIN: vol.All(cv.ensure_list, [_DEVICE_SCHEMA])},
     extra=vol.ALLOW_EXTRA,
 )
 
 
 class PhnixKHXDevice:
-    """Runtime objects for one configured heat pump."""
+    """Runtime objects shared by the entities for one heat pump."""
 
     def __init__(self, name: str, host: str, port: int, slave: int,
                  client: ModbusClient,
-                 coordinator: "DataUpdateCoordinator[dict[int, int]]") -> None:
+                 coordinator: DataUpdateCoordinator[dict[int, int]]) -> None:
         self.name = name
         self.host = host
         self.port = port
@@ -76,13 +61,15 @@ class PhnixKHXDevice:
         self.client = client
         self.coordinator = coordinator
 
-    # ---- convenience accessors used by every platform ---------------------
     def raw(self, address: int) -> int | None:
+        """Return a raw register value."""
         return self.coordinator.data.get(address)
 
     def value(self, address: int, scale: float = 1.0,
               signed: bool = False) -> float | None:
+        """Return a scaled register value."""
         from .modbus import signed16
+
         raw = self.coordinator.data.get(address)
         if raw is None:
             return None
@@ -90,53 +77,72 @@ class PhnixKHXDevice:
 
 
 def all_addresses() -> list[int]:
-    """Every register any entity needs - polled in one pass."""
-    return sorted({i["address"] for i in SENSORS + NUMBERS + SWITCHES + SELECTS})
+    """Return all registers used by this integration."""
+    return sorted({item["address"] for item in SENSORS + NUMBERS + SWITCHES + SELECTS})
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up one or more Phnix KHX heat pumps from configuration.yaml."""
-    hass.data.setdefault(DOMAIN, {})
-
-    for conf in config[DOMAIN]:
-        name = conf[CONF_NAME]
-        client = ModbusClient(
-            host=conf[CONF_HOST],
-            port=conf[CONF_PORT],
-            unit=conf[CONF_SLAVE],
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Import any legacy YAML entries into the UI-managed config-entry system."""
+    for device_config in config.get(DOMAIN, []):
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "import"},
+            data=device_config,
         )
-        addresses = all_addresses()
-
-        async def _update(client=client, addresses=addresses) -> dict[int, int]:
-            try:
-                return await client.read_registers(addresses)
-            except ModbusError as err:
-                raise UpdateFailed(str(err)) from err
-
-        coordinator: DataUpdateCoordinator[dict[int, int]] = DataUpdateCoordinator(
-            hass,
-            _LOGGER,
-            name=f"phnix_khx_{name}",
-            update_method=_update,
-            update_interval=timedelta(seconds=conf[CONF_SCAN_INTERVAL]),
-        )
-        await coordinator.async_refresh()
-
-        hass.data[DOMAIN][name] = PhnixKHXDevice(
-            name=name,
-            host=conf[CONF_HOST],
-            port=conf[CONF_PORT],
-            slave=conf[CONF_SLAVE],
-            client=client,
-            coordinator=coordinator,
-        )
-        _LOGGER.info(
-            "Phnix KHX %s (%s) ready: %d/%d registers readable",
-            name, conf[CONF_HOST], len(coordinator.data), len(addresses),
-        )
-
-        for platform in PLATFORMS:
-            hass.async_create_task(
-                async_load_platform(hass, platform, DOMAIN, {"name": name}, config)
-            )
     return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up a configured heat pump."""
+    entry_values = {**entry.data, **entry.options}
+    values = {
+        CONF_NAME: entry.title or DEFAULT_NAME,
+        CONF_HOST: entry_values[CONF_HOST],
+        CONF_PORT: entry_values.get(CONF_PORT, DEFAULT_PORT),
+        CONF_SLAVE: entry_values.get(CONF_SLAVE, DEFAULT_SLAVE),
+        CONF_SCAN_INTERVAL: entry_values.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+    }
+    client = ModbusClient(
+        host=values[CONF_HOST],
+        port=values[CONF_PORT],
+        unit=values[CONF_SLAVE],
+    )
+
+    async def _update() -> dict[int, int]:
+        try:
+            return await client.read_registers(all_addresses())
+        except ModbusError as err:
+            raise UpdateFailed(str(err)) from err
+
+    coordinator: DataUpdateCoordinator[dict[int, int]] = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=f"phnix_khx_{values[CONF_NAME]}",
+        update_method=_update,
+        update_interval=timedelta(seconds=values[CONF_SCAN_INTERVAL]),
+    )
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except (ModbusError, UpdateFailed) as err:
+        raise ConfigEntryNotReady(f"Unable to read registers from {values[CONF_HOST]}") from err
+
+    device = PhnixKHXDevice(
+        name=values[CONF_NAME],
+        host=values[CONF_HOST],
+        port=values[CONF_PORT],
+        slave=values[CONF_SLAVE],
+        client=client,
+        coordinator=coordinator,
+    )
+    entry.runtime_data = device
+    _LOGGER.info(
+        "Phnix KHX %s (%s) ready: %d/%d registers readable",
+        device.name, device.host, len(coordinator.data), len(all_addresses()),
+    )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload the config entry and its platforms."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

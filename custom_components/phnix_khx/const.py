@@ -6,6 +6,11 @@ against the live unit with 0 mismatches).
 """
 
 DOMAIN = "phnix_khx"
+CONF_NAME = "name"
+CONF_HOST = "host"
+CONF_PORT = "port"
+CONF_SLAVE = "slave"
+CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_NAME = "Phnix KHX"
 DEFAULT_PORT = 502
 DEFAULT_SLAVE = 1
